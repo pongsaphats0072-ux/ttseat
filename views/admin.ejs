@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - ระบบจองที่นั่ง</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface-soft: #f9fafb;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #374151;
+      --primary-strong: #111827;
+      --danger: #b91c1c;
+      --danger-soft: #fef2f2;
+      --ok: #065f46;
+      --ok-soft: #ecfdf5;
+      --shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+      --radius: 14px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .gradient-text {
+      color: var(--text);
+    }
+
+    .glass-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .gradient-btn {
+      background: var(--primary);
+      border: 1px solid var(--primary);
+      color: white;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .gradient-btn:hover {
+      background: var(--primary-strong);
+      border-color: var(--primary-strong);
+    }
+
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .fade-enter {
+      animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .seat-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: #f3f4f6;
+      color: #111827;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.875rem;
+      border: 1px solid var(--border);
+    }
+
+    .layout-toolbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .layout-help {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 0.2rem;
+    }
+
+    .layout-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .layout-size {
+      margin-top: 0.35rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .room-size-actions {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+
+    .layout-btn {
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      padding: 0.55rem 0.9rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+      color: var(--text);
+    }
+
+    .layout-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .layout-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .layout-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .layout-btn.neutral {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .layout-btn.danger {
+      background: #fff;
+      border-color: #fecaca;
+      color: var(--danger);
+    }
+
+    .layout-board {
+      --seat-scale: 1;
+      position: relative;
+      min-height: 320px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 1px 1px, rgba(17, 24, 39, 0.08) 1px, transparent 0) 0 0 / 24px 24px,
+        var(--surface-soft);
+      border: 1px solid var(--border);
+    }
+
+    .layout-scroll {
+      overflow: auto;
+      max-width: 100%;
+      padding-bottom: 0.25rem;
+    }
+
+    .table-block {
+      position: absolute;
+      width: calc(140px * var(--seat-scale));
+      min-height: calc(112px * var(--seat-scale));
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: calc(18px * var(--seat-scale));
+      padding: calc(0.9rem * var(--seat-scale));
+      display: flex;
+      flex-direction: column;
+      gap: calc(0.55rem * var(--seat-scale));
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      box-shadow: 0 6px 16px rgba(17, 24, 39, 0.08);
+    }
+
+    .table-block.is-booked {
+      border-color: #fecaca;
+      background: var(--danger-soft);
+    }
+
+    .table-block.is-dragging {
+      opacity: 0.35;
+      transform: scale(0.96);
+      cursor: grabbing;
+    }
+
+    .table-block.is-over {
+      outline: 3px dashed rgba(0, 212, 255, 0.85);
+      outline-offset: 3px;
+    }
+
+    .table-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .table-title {
+      font-size: calc(0.9rem * var(--seat-scale));
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .table-subtitle {
+      font-size: calc(0.72rem * var(--seat-scale));
+      color: var(--muted);
+    }
+
+    .table-controls {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .drag-hint {
+      font-size: calc(0.72rem * var(--seat-scale));
+      color: var(--muted);
+      margin-top: 0.1rem;
+    }
+
+    .table-control-btn {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      border-radius: 9999px;
+      width: calc(32px * var(--seat-scale));
+      height: calc(32px * var(--seat-scale));
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .table-control-btn.delete {
+      background: var(--danger-soft);
+      border-color: #fecaca;
+      color: var(--danger);
+    }
+
+    .table-seat-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.5rem;
+    }
+
+    .table-seat-chip {
+      border-radius: calc(14px * var(--seat-scale));
+      padding: calc(0.65rem * var(--seat-scale)) calc(0.5rem * var(--seat-scale));
+      background: #f3f4f6;
+      color: var(--text);
+      font-weight: 700;
+      text-align: center;
+      font-size: calc(0.78rem * var(--seat-scale));
+      min-height: calc(58px * var(--seat-scale));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: calc(0.2rem * var(--seat-scale));
+    }
+
+    .table-seat-chip.is-booked {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .table-seat-chip small {
+      display: block;
+      font-size: calc(0.62rem * var(--seat-scale));
+      font-weight: 500;
+      opacity: 0.9;
+      word-break: break-word;
+    }
+
+    .layout-empty {
+      grid-column: 1 / -1;
+      padding: 1rem;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen">
+    <!-- Navigation -->
+    <nav class="glass-card border-b border-b-1 border-gray-200 sticky top-0 z-50 m-0 rounded-none">
+      <div class="container mx-auto px-4 py-4 max-w-7xl">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <div class="text-2xl">⚙️</div>
+            <div>
+              <h1 class="text-xl font-bold gradient-text">Admin Dashboard</h1>
+              <p class="text-xs text-gray-500">จัดการระบบจองที่นั่ง</p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <a href="/" class="px-4 py-2 gradient-btn rounded-lg text-sm font-semibold">
+              ← กลับหน้าจอง
+            </a>
+            <a href="/summary" class="px-4 py-2 gradient-btn rounded-lg text-sm font-semibold">
+              📊 ดูสรุป
+            </a>
+            <a href="/help" class="px-4 py-2 gradient-btn rounded-lg text-sm font-semibold">
+              📞 ขอความช่วยเหลือ
+            </a>
+            <a href="/admin-logout" class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-semibold text-sm">
+              🚪 ออกจากระบบ
+            </a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+      <!-- Stats Row -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <!-- Total Seats -->
+        <div class="stat-box">
+          <div class="text-4xl mb-2" id="totalSeats">45</div>
+          <p class="text-gray-600 font-semibold">ที่นั่งทั้งหมด</p>
+        </div>
+
+        <!-- Booked Seats -->
+        <div class="stat-box">
+          <div class="text-4xl mb-2" id="totalBooked">0</div>
+          <p class="text-gray-600 font-semibold">ที่นั่งที่ถูกจอง</p>
+        </div>
+
+        <!-- Empty Seats -->
+        <div class="stat-box">
+          <div class="text-4xl mb-2" id="totalEmpty">45</div>
+          <p class="text-gray-600 font-semibold">ที่นั่งว่าง</p>
+        </div>
+
+        <!-- Last Updated -->
+        <div class="stat-box">
+          <div class="text-lg mb-2" id="lastUpdate">-</div>
+          <p class="text-gray-600 font-semibold">อัปเดตล่าสุด</p>
+        </div>
+      </div>
+
+      <!-- Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <!-- Left Panel: Quick Actions -->
+        <div class="lg:col-span-1 space-y-6">
+          <!-- Quick Add Booking -->
+          <div class="glass-card p-6">
+            <h2 class="text-lg font-bold gradient-text mb-4 flex items-center gap-2">
+              <span>➕</span> เพิ่มการจอง
+            </h2>
+            <form id="adminBookForm" class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                  รหัสที่นั่ง
+                </label>
+                <input
+                  type="text"
+                  id="adminSeat"
+                  placeholder="เช่น A1"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 text-sm bg-white text-gray-900"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">
+                  ชื่อเล่น
+                </label>
+                <input
+                  type="text"
+                  id="adminNickname"
+                  placeholder="เช่น โต้ง"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 text-sm bg-white text-gray-900"
+                />
+              </div>
+              <button
+                type="submit"
+                class="w-full gradient-btn py-2 rounded-lg font-semibold"
+              >
+                ✓ เพิ่มการจอง
+              </button>
+            </form>
+          </div>
+
+          <!-- Search & Filter -->
+          <div class="glass-card p-6">
+            <h2 class="text-lg font-bold gradient-text mb-4 flex items-center gap-2">
+              <span>🔍</span> ค้นหา
+            </h2>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="ค้นหาชื่อเล่นหรือที่นั่ง"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 text-sm bg-white text-gray-900"
+            />
+          </div>
+        </div>
+
+        <!-- Right Panel: Bookings List -->
+        <div class="lg:col-span-2">
+          <div class="glass-card p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-lg font-bold gradient-text flex items-center gap-2">
+                <span>📋</span> รายการจองทั้งหมด
+              </h2>
+              <button
+                onclick="sortBookings()"
+                class="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition border border-gray-200"
+              >
+                🔄 เรียง
+              </button>
+            </div>
+
+            <div id="bookingsList" class="space-y-2 max-h-96 overflow-y-auto">
+              <div class="text-center py-8 text-gray-500">
+                <p>🎉 ยังไม่มีการจองเลย</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seats Overview -->
+      <div class="glass-card p-6">
+        <div class="layout-toolbar">
+          <div>
+            <h2 class="text-lg font-bold gradient-text mb-1 flex items-center gap-2">
+              <span>📍</span> ภาพรวมที่นั่ง
+            </h2>
+            <div class="layout-help">เริ่มจากผังว่าง แล้วลากวางโต๊ะเรียนได้เลยบนคอมพิวเตอร์หรือมือถือ</div>
+            <div class="layout-size">ขนาดห้อง: <strong id="roomSizeLabel">—</strong></div>
+          </div>
+          <div class="layout-actions">
+            <button type="button" id="toggleEditMode" class="layout-btn primary">เริ่มแก้ผัง</button>
+            <button type="button" id="addTableBtn" class="layout-btn neutral" disabled>+ เพิ่มโต๊ะเดี่ยว</button>
+            <button type="button" id="saveLayoutBtn" class="layout-btn neutral" disabled>บันทึกผัง</button>
+            <button type="button" id="resetLayoutBtn" class="layout-btn danger">ล้างผังทั้งหมด</button>
+          </div>
+          <div class="room-size-actions">
+            <button type="button" id="shrinkWidthBtn" class="layout-btn neutral" disabled>− กว้าง</button>
+            <button type="button" id="growWidthBtn" class="layout-btn neutral" disabled>+ กว้าง</button>
+            <button type="button" id="shrinkHeightBtn" class="layout-btn neutral" disabled>− สูง</button>
+            <button type="button" id="growHeightBtn" class="layout-btn neutral" disabled>+ สูง</button>
+          </div>
+        </div>
+        <div class="classroom-map">
+          <div class="layout-scroll">
+            <div class="layout-board" id="seatsOverview">
+              <div class="layout-empty">กำลังโหลดผังโต๊ะ...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div
+    id="notification"
+    class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white opacity-0 transform translate-y-full transition-all duration-300 pointer-events-none fade-enter"
+  >
+  </div>
+
+  <script>
+    const socket = io();
+    const canvas = document.getElementById('seatsOverview');
+    const roomSizeLabel = document.getElementById('roomSizeLabel');
+    const baseSeatCardWidth = 140;
+    const baseSeatCardHeight = 112;
+    const canvasPadding = 16;
+    const defaultRoomSize = {
+      width: 1400,
+      height: 900
+    };
+
+    let bookings = [];
+    let sortByTime = false;
+    let seatLayout = [];
+    let seatPositions = {};
+    let roomSize = { ...defaultRoomSize };
+    let editMode = false;
+    let layoutDirty = false;
+    let dragSeatId = null;
+    let dragOffset = { x: 0, y: 0 };
+    let viewScale = 1;
+
+    function columnToNumber(label) {
+      return label.split('').reduce((value, character) => value * 26 + (character.charCodeAt(0) - 64), 0);
+    }
+
+    function numberToColumn(number) {
+      let current = number;
+      let label = '';
+
+      while (current > 0) {
+        const remainder = (current - 1) % 26;
+        label = String.fromCharCode(65 + remainder) + label;
+        current = Math.floor((current - 1) / 26);
+      }
+
+      return label;
+    }
+
+    function getSeatPrefix(seatId) {
+      const match = seatId.match(/^([A-Z]+)\d+$/);
+      return match ? match[1] : seatId;
+    }
+
+    function getNextSeatId() {
+      let highest = 0;
+      new Set(seatLayout.map(getSeatPrefix)).forEach((prefix) => {
+        highest = Math.max(highest, columnToNumber(prefix));
+      });
+      return `${numberToColumn(highest + 1)}1`;
+    }
+
+    function isValidPosition(position) {
+      return position
+        && Number.isFinite(position.x)
+        && Number.isFinite(position.y);
+    }
+
+    function getCanvasSize() {
+      return { ...roomSize };
+    }
+
+    function clampRoomSize(nextRoomSize) {
+      return {
+        width: Math.max(960, Math.min(5000, Math.round(nextRoomSize.width))),
+        height: Math.max(720, Math.min(3500, Math.round(nextRoomSize.height)))
+      };
+    }
+
+    function applyRoomSize() {
+      roomSize = clampRoomSize(roomSize);
+      updateViewScale();
+      roomSizeLabel.textContent = `${roomSize.width} × ${roomSize.height} px · ซูม ${Math.round(viewScale * 100)}%`;
+    }
+
+    function updateViewScale() {
+      const scrollContainer = canvas.closest('.layout-scroll');
+      const availableWidth = Math.max((scrollContainer ? scrollContainer.clientWidth : window.innerWidth) - 8, 280);
+      const availableHeight = Math.max((window.innerWidth <= 768 ? window.innerHeight * 0.55 : window.innerHeight * 0.72), 260);
+      const scaleByWidth = availableWidth / Math.max(roomSize.width, 1);
+      const scaleByHeight = availableHeight / Math.max(roomSize.height, 1);
+
+      viewScale = Math.max(0.32, Math.min(1.12, Math.min(scaleByWidth, scaleByHeight)));
+
+      canvas.style.width = `${Math.round(roomSize.width * viewScale)}px`;
+      canvas.style.height = `${Math.round(roomSize.height * viewScale)}px`;
+      canvas.style.setProperty('--seat-scale', String(viewScale));
+    }
+
+    function defaultPosition(index = 0) {
+      const size = getCanvasSize();
+      const centerX = Math.max((size.width - baseSeatCardWidth) / 2, canvasPadding);
+      const centerY = Math.max((size.height - baseSeatCardHeight) / 2, canvasPadding);
+      const offset = index * 24;
+
+      return {
+        x: Math.min(size.width - baseSeatCardWidth - canvasPadding, Math.max(canvasPadding, centerX + offset)),
+        y: Math.min(size.height - baseSeatCardHeight - canvasPadding, Math.max(canvasPadding, centerY + offset))
+      };
+    }
+
+    function normalizePositions(layout, positions) {
+      const nextPositions = {};
+      layout.forEach((seatId, index) => {
+        const position = positions?.[seatId];
+        nextPositions[seatId] = isValidPosition(position) ? position : defaultPosition(index);
+      });
+      return nextPositions;
+    }
+
+    function syncPositionsWithLayout() {
+      seatPositions = normalizePositions(seatLayout, seatPositions);
+    }
+
+    function getBookingMap() {
+      const bookingMap = {};
+      bookings.forEach((booking) => {
+        bookingMap[booking.seatId] = booking.nickname;
+      });
+      return bookingMap;
+    }
+
+    function updateStats() {
+      const booked = bookings.length;
+      const totalSeats = seatLayout.length;
+      const empty = Math.max(totalSeats - booked, 0);
+      const now = new Date().toLocaleTimeString('th-TH');
+
+      document.getElementById('totalSeats').textContent = totalSeats;
+      document.getElementById('totalBooked').textContent = booked;
+      document.getElementById('totalEmpty').textContent = empty;
+      document.getElementById('lastUpdate').textContent = now;
+    }
+
+    function displayBookingsList() {
+      const listContainer = document.getElementById('bookingsList');
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+      let filtered = bookings.filter((booking) =>
+        booking.seatId.toLowerCase().includes(searchTerm) ||
+        booking.nickname.toLowerCase().includes(searchTerm)
+      );
+
+      if (sortByTime) {
+        filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      } else {
+        filtered.sort((a, b) => a.seatId.localeCompare(b.seatId));
+      }
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = '<div class="text-center py-8 text-gray-500"><p>ไม่พบผลลัพธ์</p></div>';
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map((booking, index) => {
+        const time = new Date(booking.timestamp).toLocaleTimeString('th-TH');
+        const date = new Date(booking.timestamp).toLocaleDateString('th-TH');
+        return `
+          <div class="flex justify-between items-center p-4 glass-card rounded-lg hover:shadow-lg transition fade-enter" style="animation-delay: ${index * 50}ms">
+            <div class="flex-1">
+              <div class="flex items-center gap-3">
+                <span class="seat-badge">${booking.seatId}</span>
+                <div>
+                  <p class="font-semibold text-gray-900">👤 ${booking.nickname}</p>
+                  <p class="text-xs text-gray-500">${date} ${time}</p>
+                </div>
+              </div>
+            </div>
+            <button
+              onclick="deleteBooking('${booking.seatId}')"
+              class="ml-2 px-3 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition text-sm font-semibold"
+            >
+              🗑️ ลบ
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderLayout() {
+      syncPositionsWithLayout();
+      const bookingMap = getBookingMap();
+
+      if (!seatLayout.length) {
+        canvas.innerHTML = '<div class="layout-empty">ผังยังว่างอยู่ กด + เพิ่มโต๊ะเดี่ยว เพื่อเริ่มจัดผัง</div>';
+        bindLayoutEvents();
+        return;
+      }
+
+      canvas.innerHTML = seatLayout.map((seatId, index) => {
+        const position = seatPositions[seatId] || defaultPosition(index);
+        const bookingName = bookingMap[seatId];
+        const isDragging = dragSeatId === seatId;
+
+        return `
+          <div
+            class="table-block ${bookingName ? 'is-booked' : ''} ${isDragging ? 'is-dragging' : ''}"
+            data-seat-id="${seatId}"
+            style="left:${position.x * viewScale}px; top:${position.y * viewScale}px;"
+          >
+            <div class="table-block-header">
+              <div>
+                <div class="table-title">โต๊ะ ${seatId}</div>
+                <div class="table-subtitle">${bookingName ? 'จองแล้ว' : 'ว่าง'}</div>
+              </div>
+              ${editMode ? `<button type="button" class="table-control-btn delete" data-action="remove-seat" data-seat-id="${seatId}" aria-label="ลบโต๊ะ">−</button>` : ''}
+            </div>
+            <div class="table-seat-grid">
+              <div class="table-seat-chip ${bookingName ? 'is-booked' : ''}">
+                <span>${seatId}</span>
+                <small>${bookingName || 'ว่าง'}</small>
+              </div>
+            </div>
+            ${editMode ? '<div class="drag-hint">ลากวางตรงไหนก็ได้</div>' : ''}
+          </div>
+        `;
+      }).join('');
+
+      bindLayoutEvents();
+    }
+
+    function updateLayoutButtons() {
+      const saveButton = document.getElementById('saveLayoutBtn');
+      const addButton = document.getElementById('addTableBtn');
+      const shrinkWidthButton = document.getElementById('shrinkWidthBtn');
+      const growWidthButton = document.getElementById('growWidthBtn');
+      const shrinkHeightButton = document.getElementById('shrinkHeightBtn');
+      const growHeightButton = document.getElementById('growHeightBtn');
+      saveButton.disabled = !layoutDirty;
+      saveButton.textContent = layoutDirty ? 'บันทึกผัง' : 'บันทึกแล้ว';
+      addButton.disabled = !editMode;
+      shrinkWidthButton.disabled = !editMode;
+      growWidthButton.disabled = !editMode;
+      shrinkHeightButton.disabled = !editMode;
+      growHeightButton.disabled = !editMode;
+      document.getElementById('toggleEditMode').textContent = editMode ? 'ออกจากโหมดแก้ผัง' : 'เริ่มแก้ผัง';
+    }
+
+    function bindLayoutEvents() {
+      document.querySelectorAll('.table-block').forEach((blockElement) => {
+        blockElement.onpointerdown = onTablePointerDown;
+      });
+
+      document.querySelectorAll('[data-action="remove-seat"]').forEach((button) => {
+        button.onclick = onRemoveSeatClick;
+      });
+    }
+
+    function onRemoveSeatClick(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      removeSeat(event.currentTarget.dataset.seatId);
+    }
+
+    function onTablePointerDown(event) {
+      if (!editMode) {
+        return;
+      }
+
+      if (event.target.closest('[data-action="remove-seat"]')) {
+        return;
+      }
+
+      const seatId = event.currentTarget.dataset.seatId;
+      const position = seatPositions[seatId] || { x: 0, y: 0 };
+      const canvasRect = canvas.getBoundingClientRect();
+
+      dragSeatId = seatId;
+      dragOffset = {
+        x: event.clientX - canvasRect.left - (position.x * viewScale),
+        y: event.clientY - canvasRect.top - (position.y * viewScale)
+      };
+      event.preventDefault();
+
+      const onPointerMove = (moveEvent) => {
+        if (!dragSeatId) {
+          return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const maxX = Math.max(roomSize.width - baseSeatCardWidth - canvasPadding, canvasPadding);
+        const maxY = Math.max(roomSize.height - baseSeatCardHeight - canvasPadding, canvasPadding);
+
+        const logicalX = (moveEvent.clientX - rect.left - dragOffset.x) / viewScale;
+        const logicalY = (moveEvent.clientY - rect.top - dragOffset.y) / viewScale;
+
+        const nextPosition = {
+          x: Math.min(maxX, Math.max(canvasPadding, logicalX)),
+          y: Math.min(maxY, Math.max(canvasPadding, logicalY))
+        };
+
+        seatPositions = {
+          ...seatPositions,
+          [dragSeatId]: nextPosition
+        };
+        layoutDirty = true;
+        updateLayoutButtons();
+        renderLayout();
+      };
+
+      const onPointerUp = () => {
+        document.removeEventListener('pointermove', onPointerMove);
+        document.removeEventListener('pointerup', onPointerUp);
+        document.removeEventListener('pointercancel', onPointerUp);
+
+        dragSeatId = null;
+        dragOffset = { x: 0, y: 0 };
+        renderLayout();
+
+        if (layoutDirty) {
+          saveLayout();
+        }
+      };
+
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('pointercancel', onPointerUp);
+    }
+
+    function addTable() {
+      const seatId = getNextSeatId();
+      seatLayout = [...seatLayout, seatId];
+      seatPositions = {
+        ...seatPositions,
+        [seatId]: defaultPosition(seatLayout.length - 1)
+      };
+      layoutDirty = true;
+      updateLayoutButtons();
+      renderLayout();
+      saveLayout();
+    }
+
+    function resizeRoom(deltaWidth, deltaHeight) {
+      roomSize = clampRoomSize({
+        width: roomSize.width + deltaWidth,
+        height: roomSize.height + deltaHeight
+      });
+      layoutDirty = true;
+      applyRoomSize();
+      updateLayoutButtons();
+      renderLayout();
+      saveLayout();
+    }
+
+    function removeSeat(seatId) {
+      const bookedSeatIds = new Set(bookings.map((booking) => booking.seatId));
+
+      if (bookedSeatIds.has(seatId)) {
+        showNotification('ลบโต๊ะนี้ไม่ได้ เพราะมีการจองอยู่', 'error');
+        return;
+      }
+
+      if (!confirm(`ต้องการลบโต๊ะ ${seatId} หรือไม่?`)) {
+        return;
+      }
+
+      seatLayout = seatLayout.filter((currentSeatId) => currentSeatId !== seatId);
+      const nextPositions = { ...seatPositions };
+      delete nextPositions[seatId];
+      seatPositions = nextPositions;
+      layoutDirty = true;
+      updateLayoutButtons();
+      renderLayout();
+      saveLayout();
+    }
+
+    async function saveLayout() {
+      if (!layoutDirty) {
+        updateLayoutButtons();
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/layout', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            seats: seatLayout,
+            positions: seatPositions,
+            roomSize
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || 'บันทึกผังไม่สำเร็จ');
+        }
+
+        layoutDirty = false;
+        updateLayoutButtons();
+        showNotification('✓ บันทึกผังโต๊ะเรียบร้อย', 'success');
+      } catch (error) {
+        console.error('Error saving layout:', error);
+        showNotification('✗ ' + error.message, 'error');
+      }
+    }
+
+    function resetLayout() {
+      seatLayout = [];
+      seatPositions = {};
+      layoutDirty = true;
+      updateLayoutButtons();
+      renderLayout();
+      saveLayout();
+    }
+
+    function toggleEditMode() {
+      editMode = !editMode;
+      dragSeatId = null;
+      dragOffset = { x: 0, y: 0 };
+      updateLayoutButtons();
+      renderLayout();
+      showNotification(editMode ? 'เปิดโหมดลากวางอิสระ' : 'ปิดโหมดแก้ผัง', 'info');
+    }
+
+    function showNotification(message, type = 'info') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white transition-all duration-300 fade-enter`;
+
+      if (type === 'success') {
+        notification.style.background = 'linear-gradient(135deg, #00d4ff, #0099ff)';
+      } else if (type === 'error') {
+        notification.style.background = 'linear-gradient(135deg, #ff006e, #ff4d7d)';
+      } else {
+        notification.style.background = 'linear-gradient(135deg, #8338ec, #b537f2)';
+      }
+
+      notification.classList.remove('opacity-0', 'translate-y-full');
+      setTimeout(() => {
+        notification.classList.add('opacity-0', 'translate-y-full');
+      }, 3000);
+    }
+
+    function sortBookings() {
+      sortByTime = !sortByTime;
+      displayBookingsList();
+    }
+
+    function deleteBooking(seatId) {
+      if (confirm(`ยืนยันการลบการจอง ${seatId}?`)) {
+        socket.emit('cancel-booking', seatId);
+      }
+    }
+
+    function loadBookings() {
+      fetch('/api/bookings')
+        .then((response) => response.json())
+        .then((data) => {
+          bookings = data;
+          updateStats();
+          displayBookingsList();
+          renderLayout();
+        })
+        .catch((error) => console.error('Error loading bookings:', error));
+    }
+
+    async function loadLayout() {
+      try {
+        const response = await fetch('/api/layout');
+        const data = await response.json();
+        seatLayout = Array.isArray(data.seats) ? data.seats : [];
+        seatPositions = data.positions && typeof data.positions === 'object' && !Array.isArray(data.positions)
+          ? data.positions
+          : {};
+        roomSize = data.roomSize && typeof data.roomSize === 'object' && !Array.isArray(data.roomSize)
+          ? data.roomSize
+          : { ...defaultRoomSize };
+        applyRoomSize();
+        syncPositionsWithLayout();
+        layoutDirty = false;
+        updateStats();
+        updateLayoutButtons();
+        renderLayout();
+      } catch (error) {
+        console.error('Error loading seat layout:', error);
+        seatLayout = [];
+        seatPositions = {};
+        roomSize = { ...defaultRoomSize };
+        applyRoomSize();
+        layoutDirty = false;
+        updateStats();
+        updateLayoutButtons();
+        renderLayout();
+      }
+    }
+
+    // ========================
+    // Socket.io Events
+    // ========================
+
+    socket.on('load-bookings', (data) => {
+      bookings = data;
+      updateStats();
+      displayBookingsList();
+      renderLayout();
+    });
+
+    socket.on('booking-success', (data) => {
+      bookings.push({
+        seatId: data.seatId,
+        nickname: data.nickname,
+        timestamp: data.timestamp
+      });
+      updateStats();
+      displayBookingsList();
+      renderLayout();
+      showNotification('✓ จองที่นั่งสำเร็จ: ' + data.seatId, 'success');
+    });
+
+    socket.on('booking-failed', (data) => {
+      showNotification('✗ ' + data.message + ' (' + data.seatId + ')', 'error');
+    });
+
+    socket.on('cancel-success', (data) => {
+      bookings = bookings.filter((booking) => booking.seatId !== data.seatId);
+      updateStats();
+      displayBookingsList();
+      renderLayout();
+      showNotification('✓ ยกเลิกการจองสำเร็จ: ' + data.seatId, 'success');
+    });
+
+    socket.on('cancel-failed', (data) => {
+      showNotification('✗ ' + data.message, 'error');
+    });
+
+    socket.on('layout-updated', (data) => {
+      if (!data || typeof data !== 'object') {
+        return;
+      }
+
+      seatLayout = Array.isArray(data.seats) ? data.seats : [];
+      seatPositions = data.positions && typeof data.positions === 'object' && !Array.isArray(data.positions)
+        ? data.positions
+        : {};
+      roomSize = data.roomSize && typeof data.roomSize === 'object' && !Array.isArray(data.roomSize)
+        ? data.roomSize
+        : { ...defaultRoomSize };
+      applyRoomSize();
+      syncPositionsWithLayout();
+      layoutDirty = false;
+      updateStats();
+      updateLayoutButtons();
+      renderLayout();
+    });
+
+    // ========================
+    // Event Listeners
+    // ========================
+
+    document.getElementById('adminBookForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const seatId = document.getElementById('adminSeat').value.trim().toUpperCase();
+      const nickname = document.getElementById('adminNickname').value.trim();
+
+      if (!seatId || !nickname) {
+        showNotification('โปรดกรอกข้อมูลให้ครบถ้วน', 'error');
+        return;
+      }
+
+      socket.emit('book-seat', {
+        seatId,
+        nickname
+      });
+
+      document.getElementById('adminBookForm').reset();
+      document.getElementById('adminSeat').focus();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', () => {
+      displayBookingsList();
+    });
+
+    document.getElementById('toggleEditMode').addEventListener('click', toggleEditMode);
+    document.getElementById('addTableBtn').addEventListener('click', addTable);
+    document.getElementById('saveLayoutBtn').addEventListener('click', saveLayout);
+    document.getElementById('shrinkWidthBtn').addEventListener('click', () => resizeRoom(-200, 0));
+    document.getElementById('growWidthBtn').addEventListener('click', () => resizeRoom(200, 0));
+    document.getElementById('shrinkHeightBtn').addEventListener('click', () => resizeRoom(0, -160));
+    document.getElementById('growHeightBtn').addEventListener('click', () => resizeRoom(0, 160));
+    document.getElementById('resetLayoutBtn').addEventListener('click', () => {
+      if (confirm('ต้องการล้างผังโต๊ะทั้งหมดให้ว่างเปล่าหรือไม่?')) {
+        resetLayout();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      updateViewScale();
+      renderLayout();
+    });
+
+    // Initialize
+    loadBookings();
+    loadLayout();
+  </script>
+</body>
+</html>

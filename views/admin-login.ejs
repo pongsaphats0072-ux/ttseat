@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - ระบบจองที่นั่ง</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 1.25rem;
+    }
+
+    .gradient-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1e1e2e 0%, #0f0c29 25%, #302b63 50%, #24243e 75%, #0f0c29 100%);
+      z-index: -1;
+      animation: gradientShift 15s ease infinite;
+      background-size: 400% 400%;
+    }
+
+    @keyframes gradientShift {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+      opacity: 0.1;
+      mix-blend-mode: screen;
+    }
+
+    .blob-1 {
+      width: 300px;
+      height: 300px;
+      background: linear-gradient(45deg, #00d4ff, #0099ff);
+      top: -100px;
+      left: -100px;
+      animation: float 20s infinite ease-in-out;
+    }
+
+    .blob-2 {
+      width: 250px;
+      height: 250px;
+      background: linear-gradient(45deg, #ff006e, #8338ec);
+      bottom: -50px;
+      right: -50px;
+      animation: float 25s infinite ease-in-out reverse;
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translate(0, 0);
+      }
+      50% {
+        transform: translate(30px, -30px);
+      }
+    }
+
+    .login-container {
+      position: relative;
+      z-index: 10;
+    }
+
+    .login-card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(18px) saturate(1.25);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 3rem;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      animation: slideUp 0.8s ease-out;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top left, rgba(0, 212, 255, 0.18), transparent 30%),
+                  radial-gradient(circle at bottom right, rgba(255, 0, 110, 0.16), transparent 28%);
+      pointer-events: none;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .login-title {
+      font-size: 2.9rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #00d4ff, #0099ff, #8338ec, #ff006e);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.35rem;
+      text-align: center;
+      animation: gradientText 3s ease infinite;
+    }
+
+    @keyframes gradientText {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .login-subtitle {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.62);
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+
+    .pin-input {
+      width: 100%;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid rgba(0, 212, 255, 0.25);
+      border-radius: 14px;
+      color: #fff;
+      font-size: 1.5rem;
+      text-align: center;
+      letter-spacing: 0.5rem;
+      transition: all 0.3s ease;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+
+    .pin-input:focus {
+      outline: none;
+      border-color: #00d4ff;
+      box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.16), 0 0 24px rgba(0, 212, 255, 0.3);
+      background: rgba(0, 212, 255, 0.06);
+    }
+
+    .pin-input::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+      letter-spacing: 0.5rem;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #00d4ff, #0099ff, #8338ec);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 10px 28px rgba(0, 153, 255, 0.25);
+    }
+
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .submit-btn:hover::before {
+      left: 100%;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0, 212, 255, 0.5);
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .error-message {
+      background: rgba(255, 0, 110, 0.2);
+      border: 1px solid #ff006e;
+      border-radius: 12px;
+      padding: 1rem;
+      color: #ff6b9d;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      animation: shake 0.5s ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% {
+        transform: translateX(0);
+      }
+      25% {
+        transform: translateX(-5px);
+      }
+      75% {
+        transform: translateX(5px);
+      }
+    }
+
+    .back-link {
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+
+    .back-link a {
+      color: rgba(0, 212, 255, 0.8);
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .back-link a:hover {
+      color: #00d4ff;
+      transform: translateX(-5px);
+    }
+
+    .icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+      }
+    }
+
+    .pin-digits {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+
+    .pin-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .pin-dot.filled {
+      background: linear-gradient(135deg, #00d4ff, #0099ff);
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <div class="gradient-bg">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="login-container">
+    <div class="login-card">
+      <div class="icon">🔐</div>
+      <p class="login-subtitle">ป้อนรหัส PIN เพื่อเข้าสู่ระบบแอดมินของระบบจองที่นั่ง</p>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="error-message">
+          ⚠️ <%= error %>
+        </div>
+      <% } %>
+
+      <form method="POST" id="loginForm">
+        <div class="form-group">
+          <label class="form-label">รหัส PIN</label>
+          <input
+            type="password"
+            id="pinInput"
+            name="pin"
+            maxlength="4"
+            placeholder="1234"
+            class="pin-input"
+            required
+            autocomplete="off"
+          />
+          <div class="pin-digits" id="pinDigits">
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">
+          ✓ เข้าสู่ระบบ
+        </button>
+      </form>
+
+      <div class="back-link">
+        <a href="/">
+          ← กลับหน้าจอง
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const pinInput = document.getElementById('pinInput');
+    const pinDigits = document.querySelectorAll('.pin-dot');
+
+    pinInput.addEventListener('input', (e) => {
+      const value = e.target.value;
+      pinDigits.forEach((dot, index) => {
+        if (index < value.length) {
+          dot.classList.add('filled');
+        } else {
+          dot.classList.remove('filled');
+        }
+      });
+    });
+
+    pinInput.addEventListener('keypress', (e) => {
+      if (!/[0-9]/.test(e.key)) {
+        e.preventDefault();
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      if (pinInput.value.length !== 4) {
+        e.preventDefault();
+        pinInput.style.borderColor = '#ff006e';
+        pinInput.style.boxShadow = '0 0 20px rgba(255, 0, 110, 0.5)';
+        setTimeout(() => {
+          pinInput.style.borderColor = 'rgba(0, 212, 255, 0.3)';
+          pinInput.style.boxShadow = 'none';
+        }, 1000);
+      }
+    });
+
+    pinInput.focus();
+  </script>
+</body>
+</html>

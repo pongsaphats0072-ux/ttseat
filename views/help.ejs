@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบขอความช่วยเหลือ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    :root {
+      --font-body: "Kanit", "Segoe UI", sans-serif;
+      --font-display: "Chakra Petch", "Kanit", sans-serif;
+      --bg-color: #f6f2ec;
+      --surface: rgba(255, 255, 255, 0.92);
+      --surface-strong: #ffffff;
+      --text-primary: #1f2933;
+      --text-secondary: #52606d;
+      --primary: #0f766e;
+      --primary-strong: #0d9488;
+      --accent: #f97316;
+      --danger: #ef4444;
+      --border: rgba(15, 118, 110, 0.18);
+      --shadow-sm: 0 8px 24px rgba(15, 118, 110, 0.12);
+      --shadow-md: 0 18px 40px rgba(15, 118, 110, 0.18);
+      --radius-xl: 1.8rem;
+      --bg-gradient:
+        radial-gradient(800px 500px at 5% -10%, rgba(249, 115, 22, 0.25), transparent 60%),
+        radial-gradient(700px 500px at 95% 10%, rgba(14, 165, 233, 0.18), transparent 60%),
+        linear-gradient(120deg, #fdf6ef 0%, #f6f7fb 55%, #eef7f2 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-color);
+      background: var(--bg-gradient);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: radial-gradient(rgba(15, 118, 110, 0.12) 1px, transparent 1px);
+      background-size: 32px 32px;
+      opacity: 0.35;
+      z-index: -1;
+    }
+
+    .app-shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(16px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+    }
+
+    .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .brand-sub {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.1rem;
+      border-radius: 999px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      font-family: var(--font-body);
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      color: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .btn-outline:hover {
+      background: rgba(15, 118, 110, 0.08);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, var(--danger), #f97316);
+      color: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 2.4vw, 2.6rem);
+      margin-bottom: 0.4rem;
+    }
+
+    .help-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .help-item {
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 0.9rem;
+      padding: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .help-item:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .help-item.urgent {
+      border-left: 4px solid var(--danger);
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    .help-content {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .help-name {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+    }
+
+    .help-message {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 0.3rem;
+    }
+
+    .help-time {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.4rem;
+    }
+
+    .help-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      color: var(--text-secondary);
+    }
+
+    .muted {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.1);
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 900px) {
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .help-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .help-actions {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="card topbar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <div class="brand-title">ระบบจองที่นั่ง</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span class="status-badge">
+        </span>
+        <a href="/admin" class="btn btn-outline">← กลับแดชบอร์ด</a>
+      </div>
+    </header>
+
+    <section class="card hero">
+      <div>
+        <h1>ระบบขอความช่วยเหลือ</h1>
+      </div>
+    </section>
+
+    <main class="card">
+      <div id="helpListContainer" class="help-list">
+        <div class="empty-state">
+            <p>กรุณาติดต่อที่TIKTOK:33student126</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const socket = io();
+    let helpRequests = [];
+
+    function renderHelpList() {
+      const container = document.getElementById('helpListContainer');
+      const helpCount = document.getElementById('helpCount');
+
+      helpCount.textContent = helpRequests.length;
+
+      if (helpRequests.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p>กรุณาติดต่อที่TIKTOK:33student126</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Sort by timestamp (newest first)
+      const sorted = [...helpRequests].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      container.innerHTML = sorted.map(request => {
+        const time = new Date(request.timestamp).toLocaleString('th-TH', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+
+        return `
+          <div class="help-item">
+            <div class="help-content">
+              <div class="help-name">👤 ${request.name || 'ไม่มีชื่อ'}</div>
+              <div class="help-message">${request.message || 'ไม่มีข้อความ'}</div>
+              <div class="help-time">${time}</div>
+            </div>
+            <div class="help-actions">
+              <button class="btn btn-primary" onclick="respondHelp('${request.id}')">📱 ติดต่อ</button>
+              <button class="btn btn-outline" onclick="removeHelp('${request.id}')">✕ ลบ</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Update last update time
+      const now = new Date();
+      document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function respondHelp(id) {
+      alert('กำลังติดต่อผู้ใช้...');
+      // Implementation can be expanded later
+    }
+
+    function removeHelp(id) {
+      if (confirm('ต้องการลบคำขอนี้หรือไม่?')) {
+        helpRequests = helpRequests.filter(r => r.id !== id);
+        renderHelpList();
+        socket.emit('help-resolved', { id });
+      }
+    }
+
+    // Listen for new help requests
+    socket.on('help-request', (request) => {
+      helpRequests.push({
+        id: request.id || Date.now(),
+        name: request.name,
+        message: request.message,
+        timestamp: new Date().toISOString()
+      });
+      renderHelpList();
+    });
+
+    // Initial render
+    renderHelpList();
+  </script>
+</body>
+</html>
