@@ -39,7 +39,7 @@ const BOOKINGS_FILE = path.join(__dirname, 'bookings.json');
 const LAYOUT_FILE = path.join(__dirname, 'seat-layout.json');
 const POSITIONS_FILE = path.join(__dirname, 'seat-positions.json');
 const ROOM_SIZE_FILE = path.join(__dirname, 'room-size.json');
-const ADMIN_PIN = '1234'; // Admin PIN
+const ADMIN_PIN = '4831'; // Admin PIN
 const DEFAULT_ROOM_SIZE = {
   width: 1400,
   height: 900
